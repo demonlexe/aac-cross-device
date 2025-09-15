@@ -4,12 +4,11 @@ import {
   Text,
   StyleSheet,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { VocabularyItem } from '../types/vocabulary';
-import { speak } from '../utils/speech';
+import { speak, speechService } from '../utils/speech';
 
 interface VocabButtonProps {
   item: VocabularyItem;
@@ -28,27 +27,27 @@ export function VocabButton({
   disabled = false,
   showText = true,
 }: VocabButtonProps) {
-  const [isLoading, setIsLoading] = React.useState(false);
   const [imageError, setImageError] = React.useState(false);
+  const [isDebounced, setIsDebounced] = React.useState(false);
 
   const handlePress = async () => {
-    if (disabled || isLoading) return;
+    if (disabled || isDebounced) return;
+
+    // Set debounce
+    setIsDebounced(true);
+    setTimeout(() => setIsDebounced(false), 300); // 300ms debounce
 
     try {
-      setIsLoading(true);
+      // Haptic feedback (immediate, no await needed)
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Haptic feedback
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      // Speak the word
-      await speak(item.word);
+      // Speak the word (don't await to prevent blocking)
+      speak(item.word);
 
       // Call custom onPress handler
       onPress?.(item);
     } catch (error) {
       console.error('Error in VocabButton press:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -68,56 +67,50 @@ export function VocabButton({
     <TouchableOpacity
       style={buttonStyle}
       onPress={handlePress}
-      disabled={disabled || isLoading}
+      disabled={disabled}
       activeOpacity={0.7}
       testID={`vocab-button-${item.id}`}
     >
       <View style={styles.content}>
-        {isLoading ? (
-          <ActivityIndicator size="small" color="#666" />
+        {!imageError ? (
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={[
+              styles.image,
+              {
+                width: imageSize,
+                height: imageSize,
+              },
+            ]}
+            contentFit="contain"
+            transition={200}
+            onError={() => setImageError(true)}
+          />
         ) : (
-          <>
-            {!imageError ? (
-              <Image
-                source={{ uri: item.imageUrl }}
-                style={[
-                  styles.image,
-                  {
-                    width: imageSize,
-                    height: imageSize,
-                  },
-                ]}
-                contentFit="contain"
-                transition={200}
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.imagePlaceholder,
-                  {
-                    width: imageSize,
-                    height: imageSize,
-                  },
-                ]}
-              >
-                <Text style={styles.placeholderText}>?</Text>
-              </View>
-            )}
+          <View
+            style={[
+              styles.imagePlaceholder,
+              {
+                width: imageSize,
+                height: imageSize,
+              },
+            ]}
+          >
+            <Text style={styles.placeholderText}>?</Text>
+          </View>
+        )}
 
-            {showText && (
-              <Text
-                style={[
-                  styles.text,
-                  { fontSize: Math.max(12, Math.min(width * 0.08, 16)) }
-                ]}
-                numberOfLines={2}
-                adjustsFontSizeToFit
-              >
-                {item.word}
-              </Text>
-            )}
-          </>
+        {showText && (
+          <Text
+            style={[
+              styles.text,
+              { fontSize: Math.max(12, Math.min(width * 0.08, 16)) }
+            ]}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+          >
+            {item.word}
+          </Text>
         )}
       </View>
     </TouchableOpacity>

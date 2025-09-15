@@ -77,5 +77,5 @@ export const ARASAAC_SYMBOLS = {
 } as const;
 
 export function getArasaacImageUrl(symbolId: string, size: number = 300): string {
-  return `${ARASAAC_BASE_URL}/${symbolId}?download=false&size=${size}`;
+  return `${ARASAAC_BASE_URL}/${symbolId}`;
 }

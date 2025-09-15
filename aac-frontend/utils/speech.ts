@@ -20,24 +20,36 @@ class SpeechService {
    * Speak the given text with optional custom options
    */
   async speak(text: string, options?: SpeechOptions): Promise<void> {
-    if (this.currentlyPlaying) {
-      await this.stop();
-    }
+    // Always stop any current speech first
+    await this.stop();
 
     const speechOptions = { ...this.defaultOptions, ...options };
 
     this.currentlyPlaying = true;
 
     return new Promise((resolve, reject) => {
+      // Add a timeout to prevent stuck loading states
+      const timeout = setTimeout(() => {
+        this.currentlyPlaying = false;
+        resolve();
+      }, 5000); // 5 second timeout
+
       Speech.speak(text, {
         ...speechOptions,
         onDone: () => {
+          clearTimeout(timeout);
           this.currentlyPlaying = false;
           resolve();
         },
         onError: (error) => {
+          clearTimeout(timeout);
           this.currentlyPlaying = false;
           reject(error);
+        },
+        onStopped: () => {
+          clearTimeout(timeout);
+          this.currentlyPlaying = false;
+          resolve();
         },
       });
     });
